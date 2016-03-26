@@ -55,34 +55,83 @@ LD.prototype.wrap = function(func) {
   return function() {func.apply(otherThis, arguments);}
 }
 
-LD.prototype.handleMouseMove = function(evt) {
-  newX = 2.0 * evt.clientX / this.canvas.width - 1.0;
-  newY = -2.0 * evt.clientY / this.canvas.height + 1.0;
-  this.inputX = newX;
-  this.inputY = newY;
+LD.prototype.handleInput = function(inputX, inputY, buttons) {
+  console.log("handleInput", inputX, inputY, buttons);
+  this.inputX = inputX;
+  this.inputY = inputY;
+  this.buttons = buttons;
 }
 
-LD.prototype.handleMouseButtons = function(evt) {
-  this.buttons = evt.buttons;
+LD.prototype.handleKeyDown = function(keyCode) {
+  this.keysDown["" + keyCode] = true;
 }
 
-LD.prototype.handleKeyDown = function(evt) {
-  evt = evt || window.event;
-  this.keysDown["" + evt.keyCode] = true;
-}
-
-LD.prototype.handleKeyUp = function(evt) {
-  evt = evt || window.event;
-  delete this.keysDown["" + evt.keyCode];
+LD.prototype.handleKeyUp = function(keyCode) {
+  delete this.keysDown["" + keyCode];
 }
 
 LD.prototype.start = function() {
-  window.onload = this.wrap(this.render);
-  this.canvas.onmousemove = this.wrap(this.handleMouseMove);
-  this.canvas.onmousedown = this.wrap(this.handleMouseButtons);
-  this.canvas.onmouseup = this.wrap(this.handleMouseButtons);
-  window.onkeydown = this.wrap(this.handleKeyDown);
-  window.onkeyup = this.wrap(this.handleKeyUp);
+  var otherThis = this;
+  window.addEventListener("load", this.wrap(this.render), false);
+  this.canvas.addEventListener("mousedown", function(evt) {
+    evt = evt || window.event;
+    inputX = 2.0 * evt.clientX / otherThis.canvas.width - 1.0;
+    inputY = -2.0 * evt.clientY / otherThis.canvas.height + 1.0;
+    otherThis.handleInput(inputX, inputY, evt.buttons);
+  }, false);
+  this.canvas.addEventListener("mouseup", function(evt) {
+    evt = evt || window.event;
+    inputX = 2.0 * evt.clientX / otherThis.canvas.width - 1.0;
+    inputY = -2.0 * evt.clientY / otherThis.canvas.height + 1.0;
+    otherThis.handleInput(inputX, inputY, evt.buttons);
+  }, false);
+  this.canvas.addEventListener("mousemove", function(evt) {
+    evt = evt || window.event;
+    inputX = 2.0 * evt.clientX / otherThis.canvas.width - 1.0;
+    inputY = -2.0 * evt.clientY / otherThis.canvas.height + 1.0;
+    otherThis.handleInput(inputX, inputY, otherThis.buttons);
+  }, false);
+  this.canvas.addEventListener("mouseout", function(evt) {
+    evt = evt || window.event;
+    otherThis.handleInput(otherThis.inputX, otherThis.inputY, 0);
+  }, false);
+  this.canvas.addEventListener("touchstart", function(evt) {
+    evt = evt || window.event;
+    evt.preventDefault();
+    inputX = 2.0 * evt.touches[0].clientX / otherThis.canvas.width - 1.0;
+    inputY = -2.0 * evt.touches[0].clientY / otherThis.canvas.height + 1.0;
+    otherThis.handleInput(inputX, inputY, 1);
+  }, false);
+  this.canvas.addEventListener("touchend", function(evt) {
+    evt = evt || window.event;
+    evt.preventDefault();
+    otherThis.handleInput(otherThis.inputX, otherThis.inputY, 0);
+  }, false);
+  this.canvas.addEventListener("touchmove", function(evt) {
+    evt = evt || window.event;
+    evt.preventDefault();
+    inputX = 2.0 * evt.touches[0].clientX / otherThis.canvas.width - 1.0;
+    inputY = -2.0 * evt.touches[0].clientY / otherThis.canvas.height + 1.0;
+    otherThis.handleInput(inputX, inputY, otherThis.buttons);
+  }, false);
+  this.canvas.addEventListener("touchcancel", function(evt) {
+    evt = evt || window.event;
+    evt.preventDefault();
+    otherThis.handleInput(otherThis.inputX, otherThis.inputY, 0);
+  }, false);
+  this.canvas.addEventListener("touchleave", function(evt) {
+    evt = evt || window.event;
+    evt.preventDefault();
+    otherThis.handleInput(otherThis.inputX, otherThis.inputY, 0);
+  }, false);
+  window.addEventListener("keydown", function(evt) {
+    evt = evt || window.event;
+    otherThis.handleKeyDown(evt.keyCode);
+  }, false);
+  window.addEventListener("keyup", function(evt) {
+    evt = evt || window.event;
+    otherThis.handleKeyUp(evt.keyCode);
+  }, false);
   this.lastTickTime = Date.now();
   window.setInterval(this.wrap(LD.prototype.maybeTick), LD.FRAME_PERIOD_MS);
 }

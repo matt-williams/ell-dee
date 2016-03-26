@@ -41,12 +41,11 @@ Editor.prototype.initState = function() {
   this.painting = false;
 }
 
-Editor.prototype.handleMouseButtons = function(evt) {
-  var newButtons = evt.buttons;
-  if (!(this.buttons & 1) && (newButtons & 1)) {
+Editor.prototype.handleInput = function(inputX, inputY, buttons) {
+  if (!(this.buttons & 1) && (buttons & 1)) {
     var sprite = this.sprites[0];
     for (var ii = 0; ii < sprite.voxelSheets.length; ii++) {
-      var pickCoord = sprite.voxelSheets[ii].pick(this.projection, [this.inputX, this.inputY]);
+      var pickCoord = sprite.voxelSheets[ii].pick(this.projection, [inputX, inputY]);
       if (pickCoord) {
         sprite.setVoxel(pickCoord[0], pickCoord[1], pickCoord[2], 255, 0, 255);
 	this.painting = true;
@@ -55,33 +54,28 @@ Editor.prototype.handleMouseButtons = function(evt) {
     }
     if (!this.painting) {
       this.dragging = true;
-      this.dragStartX = this.inputX;
-      this.dragStartY = this.inputY;
+      this.dragStartX = inputX;
+      this.dragStartY = inputY;
       this.dragStartRotation = mat4.clone(this.sprites[0].rotation);
     }
-  } else if ((this.buttons & 1) && !(newButtons & 1)) {
+  } else if ((this.buttons & 1) && !(buttons & 1)) {
     this.painting = false;
     this.dragging = false;
-  }
-  return LD.prototype.handleMouseButtons.call(this, evt);
-}
-
-Editor.prototype.handleMouseMove = function(evt) {
-  LD.prototype.handleMouseMove.call(this, evt);
-  if (this.painting) {
+  } else if (this.painting) {
     var sprite = this.sprites[0];
     for (var z = 0; z < sprite.voxelSheets.length; z++) {
-      var pickCoord = sprite.voxelSheets[z].pick(this.projection, [this.inputX, this.inputY]);
+      var pickCoord = sprite.voxelSheets[z].pick(this.projection, [inputX, inputY]);
       if (pickCoord) {
         sprite.setVoxel(pickCoord[0], pickCoord[1], pickCoord[2], 255, 0, 255);
       }
     }
   } else if (this.dragging) {
     mat4.identity(this.sprites[0].rotation);
-    mat4.rotateY(this.sprites[0].rotation, this.sprites[0].rotation, (this.inputX - this.dragStartX) * 5);
-    mat4.rotateX(this.sprites[0].rotation, this.sprites[0].rotation, (this.inputY - this.dragStartY) * 5);
+    mat4.rotateY(this.sprites[0].rotation, this.sprites[0].rotation, (inputX - this.dragStartX) * 5);
+    mat4.rotateX(this.sprites[0].rotation, this.sprites[0].rotation, (this.dragStartY - inputY) * 5);
     mat4.multiply(this.sprites[0].rotation, this.sprites[0].rotation, this.dragStartRotation);
   }
+  return LD.prototype.handleInput.call(this, inputX, inputY, buttons);
 }
 
 Editor.prototype.start = function() {
