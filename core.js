@@ -56,7 +56,6 @@ LD.prototype.wrap = function(func) {
 }
 
 LD.prototype.handleInput = function(inputX, inputY, buttons) {
-  console.log("handleInput", inputX, inputY, buttons);
   this.inputX = inputX;
   this.inputY = inputY;
   this.buttons = buttons;

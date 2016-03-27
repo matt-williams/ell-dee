@@ -234,26 +234,6 @@ LD.Sprite3D.prototype.render = function(projection, eye) {
   LD.Sprite3D.sprite3dRenderer.render(this.voxelMap, this.size, this.scale, this.offset, projection, eye, this.matrix);
 }
 
-LD.Font = function(character, position) {
-  var code = character.charCodeAt(0);
-  code = ((code >= LD.Font.CHAR_A) && (code <= LD.Font.CHAR_Z)) ? code - LD.Font.CHAR_A :
-         ((code >= LD.Font.CHAR_0) && (code <= LD.Font.CHAR_9)) ? code - LD.Font.CHAR_0 + 26 :
-         39;
-  LD.Sprite3D.call(this, LD.Font.sprite3dRenderer, LD.Font.voxelMap, 8, true, true, true, true, [1, 1 / 40], [0, code / 40]);
-  mat4.translate(this.modelview, this.modelview, [position[0] * 1.5 - 15, position[1] * -1.5 - 23, -50]);
-}
-LD.Font.prototype = new LD.Sprite3D();
-
-LD.Font.CHAR_A = "A".charCodeAt(0);
-LD.Font.CHAR_Z = "Z".charCodeAt(0);
-LD.Font.CHAR_0 = "0".charCodeAt(0);
-LD.Font.CHAR_9 = "9".charCodeAt(0);
-
-LD.Font.init = function(sprite3dRenderer) {
-  LD.Font.sprite3dRenderer = sprite3dRenderer;
-  LD.Font.voxelMap = new GL.Texture(sprite3dRenderer.gl, "font.voxelmap.png");
-}
-
 LD.BackgroundRenderer = function(gl) {
   this.gl = gl;
   this.program = new GL.Program(
