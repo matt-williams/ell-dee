@@ -29,12 +29,6 @@ LD.prototype.initGL = function() {
 LD.prototype.initRenderers = function() {
   this.eye = vec3.create();
   this.projection = mat4.create();
-  this.backgroundRenderer = new LD.BackgroundRenderer(this.gl);
-  this.voxelSheetRenderer = new LD.VoxelSheetRenderer(this.gl);
-  LD.VoxelSheet.init(this.voxelSheetRenderer);
-  this.sprite3dRenderer = new LD.Sprite3DRenderer(this.gl);
-  LD.Sprite3D.init(this.sprite3dRenderer);
-  this.surfaceRenderer = new LD.SurfaceRenderer(this.gl, [-50, -100, 50, -20]);
 }
 
 LD.prototype.initObjects = function() {

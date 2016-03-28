@@ -261,7 +261,7 @@ LD.BackgroundRenderer.prototype.render = function() {
   gl.enable(gl.DEPTH_TEST);
 }
 
-LD.VoxelSheetRenderer = function(gl) {
+LD.SheetRenderer = function(gl) {
   this.gl = gl;
   this.program = new GL.Program(
     gl,
@@ -275,41 +275,38 @@ LD.VoxelSheetRenderer = function(gl) {
      "  uv = pos;",
      "  transformedUv = (uvMatrix * vec3(uv, 1)).xy;",
      "}"],
-    ["uniform sampler2D voxelMap;",
+    ["uniform sampler2D sheetMap;",
      "varying lowp vec2 uv;",
      "varying lowp vec2 transformedUv;",
      "void main() {",
-     "  lowp vec4 color = texture2D(voxelMap, transformedUv);",
+     "  lowp vec4 color = texture2D(sheetMap, transformedUv);",
      "  if (color.a == 0.0) {",
      "    color = vec4(1.0, 1.0, 1.0, clamp(8.0 * max(abs(uv.x), abs(uv.y)) - 7.0, 0.0, 1.0));",
      "  }",
      "  gl_FragColor = color;",
      "  return;",
      "}"]);
-  this.vertices = new GL.StaticBuffer(this.gl, LD.VoxelSheetRenderer.VERTICES);
+  this.vertices = new GL.StaticBuffer(this.gl, LD.SheetRenderer.VERTICES);
   this.matrix = mat4.create();
 }
 
-LD.VoxelSheetRenderer.VERTICES = [-1.0, -1.0,  1.0, -1.0, -1.0,  1.0,
-                                      -1.0,  1.0,  1.0, -1.0,  1.0,  1.0];
+LD.SheetRenderer.VERTICES = [-1.0, -1.0,  1.0, -1.0, -1.0,  1.0,
+                             -1.0,  1.0,  1.0, -1.0,  1.0,  1.0];
 
-LD.VoxelSheetRenderer.prototype.render = function(voxelMap, projection, modelview, z) {
+LD.SheetRenderer.prototype.render = function(sheetMap, projection, modelview, uvMatrix) {
   var gl = this.gl;
   gl.enable(gl.BLEND);
   mat4.multiply(this.matrix, projection, modelview);
-  var uvMatrix = [             1/16,  0.0, 0.0,
-                                0.0, -0.5, 0.0,
-                  1 - (z + 0.5) / 8,  0.5, 1.0];
-  voxelMap.use(gl.TEXTURE0);
+  sheetMap.use(gl.TEXTURE0);
   this.program.use({matrix: this.matrix,
 	            uvMatrix: uvMatrix,
-	            voxelMap: 0},
+	            sheetMap: 0},
                    {pos: this.vertices});
-  gl.drawArrays(gl.TRIANGLES, 0, LD.VoxelSheetRenderer.VERTICES.length / 2);
+  gl.drawArrays(gl.TRIANGLES, 0, LD.SheetRenderer.VERTICES.length / 2);
   gl.disable(gl.BLEND);
 }
 
-LD.VoxelSheetRenderer.prototype.pick = function(projection, modelview, z, point) {
+LD.SheetRenderer.prototype.pick = function(projection, modelview, point) {
   var vertices = [vec4.fromValues(-1.0, -1.0, 0.0, 1.0),
                   vec4.fromValues( 1.0, -1.0, 0.0, 1.0),
                   vec4.fromValues( 1.0,  1.0, 0.0, 1.0),
@@ -324,47 +321,71 @@ LD.VoxelSheetRenderer.prototype.pick = function(projection, modelview, z, point)
     vec2.subtract(point12, projectedVertices[1], projectedVertices[0]);
     var point14 = vec2.create();
     vec2.subtract(point14, projectedVertices[3], projectedVertices[0]);
-    pickCoord = vec3.fromValues(Math.floor(vec2.dot(point1ToPickPoint, point12) / Math.pow(vec2.length(point12), 2) * 8), Math.floor(vec2.dot(point1ToPickPoint, point14) / Math.pow(vec2.length(point14), 2) * 8), z);
+    pickCoord = vec2.fromValues(vec2.dot(point1ToPickPoint, point12) / Math.pow(vec2.length(point12), 2), vec2.dot(point1ToPickPoint, point14) / Math.pow(vec2.length(point14), 2));
   }
   return pickCoord;
 }
 
-LD.VoxelSheet = function(voxelMap, z, modelview, animation) {
+LD.Sheet = function(sheetMap, uvMatrix, modelview, animation) {
   if (arguments.length > 0) {
-    this.voxelMap = voxelMap;
-    this.z = z;
+    this.sheetMap = sheetMap;
+    this.uvMatrix = uvMatrix || mat3.create();
     this.modelview = modelview || mat4.create();
     this.animation = animation || mat4.create();
     this.matrix = mat4.create();
   }
 }
 
-LD.VoxelSheet.init = function(voxelSheetRenderer) {
-  LD.VoxelSheet.voxelSheetRenderer = voxelSheetRenderer;
+LD.Sheet.init = function(sheetRenderer) {
+  LD.Sheet.sheetRenderer = sheetRenderer;
 }
 
-LD.VoxelSheet.prototype.ticked = function(tick) {
+LD.Sheet.prototype.ticked = function(tick) {
   mat4.identity(this.animation);
 }
 
-LD.VoxelSheet.prototype.render = function(projection) {
+LD.Sheet.prototype.render = function(projection) {
   mat4.multiply(this.matrix, this.modelview, this.animation);
-  LD.VoxelSheet.voxelSheetRenderer.render(this.voxelMap, projection, this.matrix, this.z);
+  LD.Sheet.sheetRenderer.render(this.sheetMap, projection, this.matrix, this.uvMatrix);
 }
+
+LD.Sheet.prototype.pick = function(projection, pickPoint) {
+  return LD.Sheet.sheetRenderer.pick(projection, this.matrix, pickPoint);
+}
+
+LD.VoxelSheet = function(voxelMap, z, size, modelview, animation) {
+  if (arguments.length > 0) {
+    this.z = z || 0;
+    this.size = size || 8;
+    LD.Sheet.call(this,
+                  voxelMap,
+                  [               0.5 / this.size,  0.0, 0.0,
+                                              0.0, -0.5, 0.0,
+                   1 - (this.z + 0.5) / this.size,  0.5, 1.0],
+                  modelview,
+                  animation);
+  }
+}
+LD.VoxelSheet.prototype = new LD.Sheet();
 
 LD.VoxelSheet.prototype.pick = function(projection, pickPoint) {
-  return LD.VoxelSheet.voxelSheetRenderer.pick(projection, this.matrix, this.z, pickPoint);
+  var pickCoord = LD.Sheet.prototype.pick.call(this, projection, pickPoint);
+  if (pickCoord) {
+    pickCoord = vec3.fromValues(Math.floor(pickCoord[0] * this.size), Math.floor(pickCoord[1] * this.size), this.z);
+  }
+  return pickCoord;
 }
 
-LD.EditableSprite3D = function() {
-  this.canvas = new LD.VoxelCanvas();
+LD.EditableSprite3D = function(size) {
+  size = size || 8;
+  this.canvas = new LD.VoxelCanvas(size);
   this.voxelMap = new GL.Texture(LD.Sprite3D.sprite3dRenderer.gl, this.canvas.getCanvas());
-  LD.Sprite3D.call(this, this.voxelMap);
+  LD.Sprite3D.call(this, this.voxelMap, size);
   this.rotation = mat4.create();
   mat4.translate(this.modelview, this.modelview, [-0.5, 0, -5]);
   this.voxelSheets = [];
   for (var z = 0; z < this.size; z++) {
-    this.voxelSheets.push(new LD.VoxelSheet(this.voxelMap, z));
+    this.voxelSheets.push(new LD.VoxelSheet(this.voxelMap, z, size));
   }
 }
 LD.EditableSprite3D.prototype = new LD.Sprite3D();
@@ -383,32 +404,48 @@ LD.EditableSprite3D.prototype.toDataURL = function() {
   return this.canvas.toDataURL();
 }
 
-LD.VoxelCanvas = function(width, height, depth) {
-  this.width = width || 8;
-  this.height = height || this.width;
-  this.depth = depth || this.width;
-  this.canvas = document.createElement("canvas");
-  this.canvas.width = this.width * this.depth;
-  this.canvas.height = this.height;
+LD.Canvas = function(width, height) {
+  if (arguments.length > 0) {
+    this.canvas = document.createElement("canvas");
+    this.canvas.width = width;
+    this.canvas.height = height;
+  }
 }
 
-LD.VoxelCanvas.prototype.setVoxel = function(x, y, z, r, g, b, a) {
+LD.Canvas.prototype.setPixel = function(x, y, r, g, b, a) {
   r = (r != null) ? r : 255;
   g = (g != null) ? g : r;
   b = (b != null) ? b : r;
   a = (a != null) ? a : 255;
   var context = this.canvas.getContext("2d");
   context.fillStyle = "rgba(" + r + "," + g + "," + b + "," + a + ")";
-  context.clearRect(x + this.width * (this.depth - z - 1), (this.height - y - 1), 1, 1);
-  context.fillRect(x + this.width * (this.depth - z - 1), (this.height - y - 1), 1, 1);
+  context.clearRect(x, y, 1, 1);
+  context.fillRect(x, y, 1, 1);
 }
 
-LD.VoxelCanvas.prototype.getCanvas = function() {
+LD.Canvas.prototype.getPixel = function(x, y) {
+  var context = this.canvas.getContext("2d");
+  return context.getImageData(x, y, 1, 1).data;
+}
+
+LD.Canvas.prototype.getCanvas = function() {
   return this.canvas;
 }
 
-LD.VoxelCanvas.prototype.toDataURL = function() {
+LD.Canvas.prototype.toDataURL = function() {
   return this.canvas.toDataURL();
+}
+
+LD.VoxelCanvas = function(width, height, depth) {
+  this.width = width || 8;
+  this.height = height || this.width;
+  this.depth = depth || this.width;
+  LD.Canvas.call(this, this.width * this.depth, this.height);
+}
+LD.VoxelCanvas.prototype = new LD.Canvas();
+
+LD.VoxelCanvas.prototype.setVoxel = function(x, y, z, r, g, b, a) {
+  this.setPixel(x + this.width * (this.depth - z - 1), (this.height - y - 1), r, g, b, a);
 }
 
 LD.TerrainRenderer = function(gl) {
@@ -479,7 +516,8 @@ LD.TerrainLightRenderer.prototype.render = function(vertices, numVertices, proje
 
 LD.TerrainChunk = function(terrain, terrainWidth, terrainHeight, modelview, animation) {
   if (arguments.length > 0) {
-    var vertices = new LD.TerrainChunkBuilder().build(terrain, terrainWidth, terrainHeight);
+    this.terrainBuilder = new LD.TerrainChunkBuilder(terrain, terrainWidth, terrainHeight);
+    var vertices = this.terrainBuilder.build();
     this.vertices = new GL.StaticBuffer(LD.TerrainChunk.terrainRenderer.gl, vertices);
     this.numVertices = vertices.length;
     this.modelview = modelview || mat4.create();
@@ -501,35 +539,48 @@ LD.TerrainChunk.prototype.ticked = function(tick) {
 
 LD.TerrainChunk.prototype.render = function(projection) {
   LD.TerrainChunk.terrainRenderer.render(this.vertices, this.numVertices, projection, this.modelview);
+  this.renderLight(projection,
+                   [2 * Math.cos(this.tick * 0.01) + 2, 2 * Math.sin(this.tick * 0.023) + 2, 0.5 + 0.5 * Math.sin(this.tick * 0.017)],
+                   [1, 0, 0],
+                   1);
+  this.renderLight(projection,
+                   [2 * Math.cos(this.tick * 0.008) + 2, 2 * Math.sin(this.tick * 0.015) + 2, 0.5 + 0.5 * Math.sin(this.tick * 0.021)]
+                   [0, 0, 1],
+                   1);
+}
+
+LD.TerrainChunk.prototype.renderLight = function(projection, lightPos, lightColor, lightRange) {
   var gl = LD.TerrainChunk.terrainLightRenderer.gl;
+  console.log(lightPos);
+  var vertices = this.terrainBuilder.build(Math.floor(lightPos[0] - lightRange), Math.floor(lightPos[1] - lightRange), 2 * lightRange + 1, 2 * lightRange + 1);
   gl.enable(gl.BLEND);
   gl.enable(gl.CULL_FACE);
   gl.depthFunc(gl.LEQUAL);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-  LD.TerrainChunk.terrainLightRenderer.render(this.vertices, this.numVertices, projection, this.modelview,
-    [2 * Math.cos(this.tick * 0.01) + 2, 2 * Math.sin(this.tick * 0.023) + 2, 0.5 + 0.5 * Math.sin(this.tick * 0.017)],
-    [1, 0, 0],
-    1);
-  LD.TerrainChunk.terrainLightRenderer.render(this.vertices, this.numVertices, projection, this.modelview,
-    [2 * Math.cos(this.tick * 0.008) + 2, 2 * Math.sin(this.tick * 0.015) + 2, 0.5 + 0.5 * Math.sin(this.tick * 0.021)],
-    [0, 0, 1],
-    1);
+  LD.TerrainChunk.terrainLightRenderer.render(vertices, vertices.length, projection, this.modelview, lightPos, lightColor, lightRange);
   gl.depthFunc(gl.LESS);
   gl.disable(gl.CULL_FACE);
   gl.disable(gl.BLEND);
 }
 
-LD.TerrainChunkBuilder = function() {
-}
-
-LD.TerrainChunkBuilder.prototype.build = function(terrain, terrainWidth, terrainHeight) {
+LD.TerrainChunkBuilder = function(terrain, terrainWidth, terrainHeight) {
   this.terrain = terrain;
   this.terrainWidth = terrainWidth;
   this.terrainHeight = terrainHeight;
+}
+
+LD.TerrainChunkBuilder.prototype.build = function(x, y, w, h) {
+  var terrain = this.terrain;
+  var terrainWidth = this.terrainWidth;
+  var terrainHeight = this.terrainHeight;
+  var x1 = Math.max(x || 0, 0);
+  var y1 = Math.max(y || 0, 0);
+  var x2 = Math.min(x1 + (w || terrainWidth), terrainWidth - 1);
+  var y2 = Math.min(y1 + (h || terrainHeight), terrainHeight - 1);
   this.vertices = [];
-  for (var y = 0; y < terrainHeight - 1; y++) {
-    for (var x = 0; x < terrainWidth - 1; x++) {
-      console.log(x, y);
+  console.log(x1, x2, y1, y2);
+  for (var y = y1; y < y2; y++) {
+    for (var x = x1; x < x2; x++) {
       var x0y0 = {x: x,     y: y,     z: terrain[x     +       y * terrainWidth].z, cliffX: terrain[x     +       y * terrainWidth].cliffX, cliffY: terrain[x     +       y * terrainWidth].cliffY};
       var x0y1 = {x: x,     y: y + 1, z: terrain[x     + (y + 1) * terrainWidth].z, cliffX: terrain[x     + (y + 1) * terrainWidth].cliffX, cliffY: terrain[x     + (y + 1) * terrainWidth].cliffY};
       var x1y0 = {x: x + 1, y: y,     z: terrain[x + 1 +       y * terrainWidth].z, cliffX: terrain[x + 1 +       y * terrainWidth].cliffX, cliffY: terrain[x + 1 +       y * terrainWidth].cliffY};
@@ -560,7 +611,6 @@ LD.TerrainChunkBuilder.slope = function(v1, v2) {
 }
 
 LD.TerrainChunkBuilder.prototype.renderTriangle = function(v1, v2, v3) {
-  console.log("(" + v1.x + ", " + v1.y + ", " + v1.z + "), (" + v2.x + ", " + v2.y + ", " + v2.z + "), (" + v3.x + ", " + v3.y + ", " + v3.z + ")");
   this.vertices.push(v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, v3.x, v3.y, v3.z);
 }
 
