@@ -74,24 +74,28 @@ LD.prototype.start = function() {
   window.addEventListener("load", this.wrap(this.render), false);
   this.canvas.addEventListener("mousedown", function(evt) {
     evt = evt || window.event;
+    evt.preventDefault();
     inputX = 2.0 * evt.clientX / otherThis.canvas.width - 1.0;
     inputY = -2.0 * evt.clientY / otherThis.canvas.height + 1.0;
     otherThis.handleInput(inputX, inputY, evt.buttons);
   }, false);
   this.canvas.addEventListener("mouseup", function(evt) {
     evt = evt || window.event;
+    evt.preventDefault();
     inputX = 2.0 * evt.clientX / otherThis.canvas.width - 1.0;
     inputY = -2.0 * evt.clientY / otherThis.canvas.height + 1.0;
     otherThis.handleInput(inputX, inputY, evt.buttons);
   }, false);
   this.canvas.addEventListener("mousemove", function(evt) {
     evt = evt || window.event;
+    evt.preventDefault();
     inputX = 2.0 * evt.clientX / otherThis.canvas.width - 1.0;
     inputY = -2.0 * evt.clientY / otherThis.canvas.height + 1.0;
     otherThis.handleInput(inputX, inputY, otherThis.buttons);
   }, false);
   this.canvas.addEventListener("mouseout", function(evt) {
     evt = evt || window.event;
+    evt.preventDefault();
     otherThis.handleInput(otherThis.inputX, otherThis.inputY, 0);
   }, false);
   this.canvas.addEventListener("touchstart", function(evt) {
@@ -125,11 +129,18 @@ LD.prototype.start = function() {
   }, false);
   window.addEventListener("keydown", function(evt) {
     evt = evt || window.event;
+    evt.preventDefault();
     otherThis.handleKeyDown(evt.keyCode);
   }, false);
   window.addEventListener("keyup", function(evt) {
     evt = evt || window.event;
+    evt.preventDefault();
     otherThis.handleKeyUp(evt.keyCode);
+  }, false);
+  // Don't display context menu on right-click
+  window.addEventListener("contextmenu", function(evt) {
+    evt = evt || window.event;
+    evt.preventDefault();
   }, false);
   this.lastTickTime = Date.now();
   window.setInterval(this.wrap(LD.prototype.maybeTick), LD.FRAME_PERIOD_MS);

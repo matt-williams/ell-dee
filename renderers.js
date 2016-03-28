@@ -399,6 +399,7 @@ LD.VoxelCanvas.prototype.setVoxel = function(x, y, z, r, g, b, a) {
   a = (a != null) ? a : 255;
   var context = this.canvas.getContext("2d");
   context.fillStyle = "rgba(" + r + "," + g + "," + b + "," + a + ")";
+  context.clearRect(x + this.width * (this.depth - z - 1), (this.height - y - 1), 1, 1);
   context.fillRect(x + this.width * (this.depth - z - 1), (this.height - y - 1), 1, 1);
 }
 

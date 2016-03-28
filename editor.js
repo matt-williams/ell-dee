@@ -39,34 +39,48 @@ Editor.prototype.initState = function() {
   LD.prototype.initState.call(this);
   this.dragging = false;
   this.painting = false;
+  this.erasing = false;
 }
 
 Editor.prototype.handleInput = function(inputX, inputY, buttons) {
-  if (!(this.buttons & 1) && (buttons & 1)) {
+  if (!(this.buttons & 3) && (buttons & 3)) {
     var sprite = this.sprites[0];
     for (var ii = 0; ii < sprite.voxelSheets.length; ii++) {
       var pickCoord = sprite.voxelSheets[ii].pick(this.projection, [inputX, inputY]);
       if (pickCoord) {
-        sprite.setVoxel(pickCoord[0], pickCoord[1], pickCoord[2], 255, 0, 255);
-	this.painting = true;
-	break;
+        this.painting = !!(buttons & 1);
+        this.erasing = !!(buttons & 2);
+        if (this.painting) {
+          sprite.setVoxel(pickCoord[0], pickCoord[1], pickCoord[2], 255, 0, 255);
+        } else {
+          sprite.setVoxel(pickCoord[0], pickCoord[1], pickCoord[2], 0, 0, 0, 0);
+        }
+        break;
       }
     }
-    if (!this.painting) {
+    if ((buttons & 1) &&
+        (!this.painting) &&
+        (!this.erasing)) {
       this.dragging = true;
       this.dragStartX = inputX;
       this.dragStartY = inputY;
       this.dragStartRotation = mat4.clone(this.sprites[0].rotation);
     }
-  } else if ((this.buttons & 1) && !(buttons & 1)) {
+  } else if ((this.buttons & 3) && !(buttons & 3)) {
     this.painting = false;
+    this.erasing = false;
     this.dragging = false;
-  } else if (this.painting) {
+  } else if ((this.painting) ||
+             (this.erasing)) {
     var sprite = this.sprites[0];
     for (var z = 0; z < sprite.voxelSheets.length; z++) {
       var pickCoord = sprite.voxelSheets[z].pick(this.projection, [inputX, inputY]);
       if (pickCoord) {
-        sprite.setVoxel(pickCoord[0], pickCoord[1], pickCoord[2], 255, 0, 255);
+        if (this.painting) {
+          sprite.setVoxel(pickCoord[0], pickCoord[1], pickCoord[2], 255, 0, 255);
+        } else {
+          sprite.setVoxel(pickCoord[0], pickCoord[1], pickCoord[2], 0, 0, 0, 0);
+        }
       }
     }
   } else if (this.dragging) {
