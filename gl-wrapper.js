@@ -69,20 +69,37 @@ GL.Program = function(gl, vertexShader, fragmentShader) {
     console.error(this.gl.getProgramInfoLog(id));
   }
   this.id = id;
+
+  this.uniforms = {};
+  var numUniforms = gl.getProgramParameter(id, gl.ACTIVE_UNIFORMS);
+  for (var uniformIndex = 0; uniformIndex < numUniforms; uniformIndex++) {
+    var uniform = gl.getActiveUniform(id, uniformIndex);
+    var uniformName = uniform.name.replace(/\[[0-9]+\]$/, "");
+    var location = gl.getUniformLocation(id, uniformName);
+    this.uniforms[uniformName] = {location: location, type: uniform.type};
+  }
+  this.attributes = {};
+  var numAttributes = gl.getProgramParameter(id, gl.ACTIVE_ATTRIBUTES);
+  for (var attributeIndex = 0; attributeIndex < numAttributes; attributeIndex++) {
+    var attribute = gl.getActiveAttrib(this.id, attributeIndex);
+    var attributeName = attribute.name.replace(/\[[0-9]+\]$/, "");
+    var location = gl.getAttribLocation(id, attributeName);
+    this.attributes[attributeName] = {location: location, type: attribute.type};
+  }
 }
 
 GL.Program.prototype.use = function(uniforms, attributes) {
   var gl = this.gl;
   var id = this.id;
-  gl.useProgram(id);
-  var numUniforms = gl.getProgramParameter(id, gl.ACTIVE_UNIFORMS);
-  for (var uniformIndex = 0; uniformIndex < numUniforms; uniformIndex++) {
-    var uniform = gl.getActiveUniform(id, uniformIndex);
-    var uniformName = uniform.name.replace(/\[[0-9]+\]$/, "");
+  if (GL.Program.id != id) {
+    gl.useProgram(id);
+  }
+  for (var uniformName in this.uniforms) {
     var value = uniforms[uniformName];
     if (value != null) {
       value = ((value instanceof Array) || (value instanceof Int32Array) || (value instanceof Float32Array)) ? value : [value];
-      var location = gl.getUniformLocation(id, uniformName);
+      var uniform = this.uniforms[uniformName];
+      var location = uniform.location;
       switch (uniform.type) {
         case gl.BOOL:
         case gl.INT:
@@ -128,15 +145,13 @@ GL.Program.prototype.use = function(uniforms, attributes) {
       console.error("No value for uniform " + uniformName);
     }
   }
-  var numAttributes = gl.getProgramParameter(id, gl.ACTIVE_ATTRIBUTES);
-  for (var attributeIndex = 0; attributeIndex < numAttributes; attributeIndex++) {
-    var attribute = gl.getActiveAttrib(this.id, attributeIndex);
-    var attributeName = attribute.name.replace(/\[[0-9]+\]$/, "");
+  for (var attributeName in this.attributes) {
     var value = attributes[attributeName];
     if (value != null) {
       value = (value instanceof GL.Buffer) ? value : new GL.DynamicBuffer(gl, value);
       gl.bindBuffer(gl.ARRAY_BUFFER, value.id);
-      var location = gl.getAttribLocation(id, attributeName);
+      var attribute = this.attributes[attributeName];
+      var location = attribute.location;
       gl.enableVertexAttribArray(location);
       switch (attribute.type) {
         case gl.FLOAT:
