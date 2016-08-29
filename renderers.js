@@ -234,6 +234,63 @@ LD.Sprite3D.prototype.render = function(projection, eye) {
   LD.Sprite3D.sprite3dRenderer.render(this.voxelMap, this.size, this.scale, this.offset, projection, eye, this.matrix);
 }
 
+LD.ShadowRenderer = function(gl) {
+  this.gl = gl;
+  this.program = new GL.Program(
+    gl,
+    ["uniform mat4 projection;",
+     "uniform mat4 modelview;",
+     "uniform highp float y;",
+     "attribute vec3 pos;",
+     "varying lowp vec3 pos2;",
+     "void main() {",
+     "  vec4 pos3 = modelview * vec4(pos, 1);",
+     "  pos3.y = y;",
+     "  gl_Position = projection * pos3;",
+     "  pos2 = pos;",
+     "}"],
+    ["varying lowp vec3 pos2;",
+     "void main() {",
+     "  gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0) * smoothstep(0.0, 1.0, 1.0 - 2.0 * length(pos2));",
+     "}"]);
+  if (!LD.ShadowRenderer.SHADOW_VERTICES) {
+    var vertices = [-0.5, 0, -0.5, -0.5, 0,  0.5,  0.5, 0, -0.5,
+                     0.5, 0, -0.5, -0.5, 0,  0.5,  0.5, 0,  0.5];
+    LD.ShadowRenderer.SHADOW_VERTICES = vertices;
+  }
+  this.shadowVertices = new GL.StaticBuffer(this.gl, LD.ShadowRenderer.SHADOW_VERTICES);
+  this.matrix = mat4.create();
+}
+
+LD.ShadowRenderer.prototype.render = function(projection, modelview, y) {
+  var gl = this.gl;
+  mat4.invert(this.matrix, modelview);
+  mat4.multiply(this.matrix, projection, modelview);
+  this.program.use({projection: projection,
+                    modelview: modelview,
+                    y: y},
+                   {pos: this.shadowVertices});
+  gl.drawArrays(gl.TRIANGLES, 0, LD.ShadowRenderer.SHADOW_VERTICES.length / 3);
+}
+
+LD.Shadow = function(shadower, scale, y) {
+  if (arguments.length > 0) {
+    this.shadower = shadower;
+    this.y = y;
+    this.matrix = mat4.create();
+    this.vector = vec4.fromValues(scale, scale, scale, scale);
+  }
+}
+
+LD.Shadow.init = function(shadowRenderer) {
+  LD.Shadow.shadowRenderer = shadowRenderer;
+}
+
+LD.Shadow.prototype.render = function(projection, eye) {
+  mat4.scale(this.matrix, this.shadower.modelview, this.vector);
+  LD.Shadow.shadowRenderer.render(projection, this.matrix, this.y);
+}
+
 LD.BackgroundRenderer = function(gl) {
   this.gl = gl;
   this.program = new GL.Program(
@@ -551,7 +608,6 @@ LD.TerrainChunk.prototype.render = function(projection) {
 
 LD.TerrainChunk.prototype.renderLight = function(projection, lightPos, lightColor, lightRange) {
   var gl = LD.TerrainChunk.terrainLightRenderer.gl;
-  console.log(lightPos);
   var vertices = this.terrainBuilder.build(Math.floor(lightPos[0] - lightRange), Math.floor(lightPos[1] - lightRange), 2 * lightRange + 1, 2 * lightRange + 1);
   gl.enable(gl.BLEND);
   gl.enable(gl.CULL_FACE);
@@ -578,7 +634,6 @@ LD.TerrainChunkBuilder.prototype.build = function(x, y, w, h) {
   var x2 = Math.min(x1 + (w || terrainWidth), terrainWidth - 1);
   var y2 = Math.min(y1 + (h || terrainHeight), terrainHeight - 1);
   this.vertices = [];
-  console.log(x1, x2, y1, y2);
   for (var y = y1; y < y2; y++) {
     for (var x = x1; x < x2; x++) {
       var x0y0 = {x: x,     y: y,     z: terrain[x     +       y * terrainWidth].z, cliffX: terrain[x     +       y * terrainWidth].cliffX, cliffY: terrain[x     +       y * terrainWidth].cliffY};
